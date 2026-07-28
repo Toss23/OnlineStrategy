@@ -7,7 +7,6 @@ using UnityEngine.InputSystem;
 public class TileInfoUI : MonoBehaviour
 {
     [SerializeField] private GameObject _content;
-    
     [SerializeField] private TMP_Text _titleText;
     [SerializeField] private TMP_Text _infoText;
 
@@ -16,50 +15,39 @@ public class TileInfoUI : MonoBehaviour
 
     public bool Active => _content.activeSelf;
 
-    private void Awake()
-    {
-        _content.SetActive(false);
-    }
+    private void Awake() => _content.SetActive(false);
 
     public void Init()
     {
         _cameraController = FindAnyObjectByType<CameraController>();
-        
         Close();
-        
+
         _escapeAction = new InputAction(binding: "<Keyboard>/escape");
         _escapeAction.performed += OnEscape;
         _escapeAction.Enable();
     }
-    
-    private void OnEscape(InputAction.CallbackContext ctx)
-    {
-        Close();
-    }
+
+    private void OnEscape(InputAction.CallbackContext ctx) => Close();
 
     public void Open(Tile tile)
     {
-        if (_content.activeSelf == true) return;
+        if (_content.activeSelf) return;
 
         _titleText.text = $"Клетка [{tile.X}, {tile.Y}]";
-        _infoText.text = 
+        _infoText.text =
             $"Владелец: {Sides.TryGetRuName(tile.Side)}\n" +
             $"Ресурс: {Resources.TryGetRuName(tile.Resource)}";
 
         if (Resources.Icon.ContainsKey(tile.Resource))
-        {
             _infoText.text += $" <sprite={Resources.Icon[tile.Resource]}>";
-        }
 
         if (tile.Resource != Resource.None)
-        {
             _infoText.text += GetResourceLevelsText(tile.Resource);
-        }
 
         _cameraController.enabled = false;
         _content.SetActive(true);
     }
-    
+
     private string GetResourceLevelsText(Resource resource)
     {
         if (resource == Resource.None || !Resources.Data.ContainsKey(resource))
@@ -76,7 +64,7 @@ public class TileInfoUI : MonoBehaviour
         {
             float production = data.Production[level];
             var priceResources = data.PriceResource;
-            var priceCounts = data.PriceCount[level]; // массив int
+            var priceCounts = data.PriceCount[level];
 
             var costParts = new List<string>();
             for (int i = 0; i < priceResources.Count; i++)
@@ -85,14 +73,9 @@ public class TileInfoUI : MonoBehaviour
                 if (count > 0)
                 {
                     if (Resources.Icon.ContainsKey(priceResources[i]))
-                    {
                         costParts.Add($"{count} <sprite={Resources.Icon[priceResources[i]]}>");
-                    }
                     else
-                    {
-                        string resName = Resources.TryGetRuName(priceResources[i]);
-                        costParts.Add($"{count} {resName}");
-                    }
+                        costParts.Add($"{count} {Resources.TryGetRuName(priceResources[i])}");
                 }
             }
 
@@ -105,8 +88,7 @@ public class TileInfoUI : MonoBehaviour
 
     public void Close()
     {
-        if (_content.activeSelf == false) return;
-        
+        if (!_content.activeSelf) return;
         _cameraController.enabled = true;
         _content.SetActive(false);
     }

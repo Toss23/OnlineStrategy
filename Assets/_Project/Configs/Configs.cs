@@ -11,4 +11,9 @@ public static class Configs
         [Resource.Energy] = 20,
         [Resource.Iron] = 100
     };
+    
+    public static readonly Dictionary<Resource, float> RESOURCES_PASSIVE_INCOME = new Dictionary<Resource, float>()
+    {
+        [Resource.Energy] = 3,
+    };
 }

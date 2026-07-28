@@ -1,25 +1,26 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Mirror;
 using UnityEngine;
 
 public class Player : NetworkBehaviour
 {
+    public event Action RequireUpdateUI;
+
     [SyncVar(hook = nameof(OnSideChanged))]
     private Side _side = Side.None;
-    
-    private readonly SyncDictionary<Resource, float> _resources = new SyncDictionary<Resource, float>();
-    private readonly SyncList<Tile> _capturedTiles = new SyncList<Tile>();
 
+    private readonly SyncDictionary<Resource, float> _resources = new();
+    private readonly SyncList<Tile> _capturedTiles = new();
+
+    private Dictionary<Tile, Action> _tileUpgradeDelegates = new Dictionary<Tile, Action>();
+    
     private PlayerInput _playerInput;
-    private PlayerUI _playerUI;
     private TurnManager _turnManager;
-    private CameraController _cameraController;
     private Board _board;
     private TileInfoUI _tileInfoUI;
     private TileResourceUI _tileResourceUI;
-    
+
     public Side Side => _side;
     public SyncDictionary<Resource, float> PlayerResources => _resources;
 
@@ -32,36 +33,94 @@ public class Player : NetworkBehaviour
 
     private void OnSideChanged(Side oldValue, Side newValue)
     {
-        if (!isLocalPlayer) return;
-        _playerUI?.UpdateUI(this);
-        _cameraController?.SetPosition(_side == Side.Purple ? Configs.BOARD_SIZE : Vector2.zero, true);
+        RequireUpdateUI?.Invoke();
+    }
+
+    private void OnResourcesChanged(SyncDictionary<Resource, float>.Operation op, Resource key, float value)
+    {
+        if (Resources.HaveMaximum.TryGetValue(key, out int max) && value > max)
+            _resources[key] = max;
+
+        RequireUpdateUI?.Invoke();
     }
 
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
+        
+        var camController = FindAnyObjectByType<CameraController>();
+        Vector2 target = _side == Side.Purple ? Configs.BOARD_SIZE : Vector2.zero;
+        camController.SetPosition(target, true);
 
         _playerInput = FindAnyObjectByType<PlayerInput>();
-        _playerUI = FindAnyObjectByType<PlayerUI>();
         _turnManager = FindAnyObjectByType<TurnManager>();
-        _cameraController = FindAnyObjectByType<CameraController>();
         _board = FindAnyObjectByType<Board>();
         _tileInfoUI = FindAnyObjectByType<TileInfoUI>();
         _tileResourceUI = FindAnyObjectByType<TileResourceUI>();
 
-        _cameraController.SetPosition(_side == Side.Purple ? Configs.BOARD_SIZE : Vector2.zero, true);
-        _tileInfoUI.Init();
-        _tileResourceUI.Init();
+        var playerUI = FindAnyObjectByType<PlayerUI>();
+        if (playerUI != null)
+            playerUI.Initialize(this);
 
-        _playerInput.OnTileLeftClick += OnLeftClickTile;
-        _playerInput.OnTileRightClick += OnRightClickTile;
+        _tileInfoUI?.Init();
+        _tileResourceUI?.Init();
 
-        _tileResourceUI.OnClickUpgrade += TryUpgradeResourceTile;
+        if (_playerInput != null)
+        {
+            _playerInput.OnTileLeftClick += OnLeftClickTile;
+            _playerInput.OnTileRightClick += OnRightClickTile;
+        }
+
+        if (_tileResourceUI != null)
+        {
+            _tileResourceUI.OnClickUpgrade += TryUpgradeResourceTile;
+        }
 
         _resources.OnChange += OnResourcesChanged;
-        
+        _capturedTiles.OnChange += OnCapturedTilesChanged;
+
         CmdInitResource();
-        _playerUI.UpdateUI(this);
+    }
+
+    private void OnDisable()
+    {
+        if (_playerInput != null)
+        {
+            _playerInput.OnTileLeftClick -= OnLeftClickTile;
+            _playerInput.OnTileRightClick -= OnRightClickTile;
+        }
+        
+        if (_tileResourceUI != null)
+        {
+            _tileResourceUI.OnClickUpgrade -= TryUpgradeResourceTile;
+        }
+
+        _resources.OnChange -= OnResourcesChanged;
+        _capturedTiles.OnChange -= OnCapturedTilesChanged;
+    }
+
+    private void OnCapturedTilesChanged(SyncList<Tile>.Operation op, int index, Tile tile)
+    {
+        switch (op)
+        {
+            case SyncList<Tile>.Operation.OP_ADD:
+                _tileUpgradeDelegates[tile] = () => RequireUpdateUI?.Invoke();
+                tile.OnLevelChanged += _tileUpgradeDelegates[tile];
+                break;
+            case SyncList<Tile>.Operation.OP_REMOVEAT:
+                if (_tileUpgradeDelegates[tile] != null)
+                {
+                    tile.OnLevelChanged -= _tileUpgradeDelegates[tile];
+                }
+                break;
+        }
+        
+        RequireUpdateUI?.Invoke();
+    }
+
+    private void TileUpgrade(Tile tile)
+    {
+        
     }
 
     [Command]
@@ -72,97 +131,56 @@ public class Player : NetworkBehaviour
             Resource resource = Enum.Parse<Resource>(resourceStr);
             if (resource == Resource.None) continue;
 
-            float value = 0;
-            if (Configs.RESOURCES_AT_START.TryGetValue(resource, out float startValue))
-            {
-                value = startValue;
-            }
+            float value = Configs.RESOURCES_AT_START.GetValueOrDefault(resource, 0);
             _resources.Add(resource, value);
         }
     }
 
-    private void OnResourcesChanged(SyncDictionary<Resource, float>.Operation op, Resource key, float value)
-    {
-        if (Resources.HaveMaximum.ContainsKey(key))
-        {
-            if (value > Resources.HaveMaximum[key])
-            {
-                _resources[key] = Resources.HaveMaximum[key];
-            }
-        }
-        _playerUI.UpdateUI(this);
-    }
-
     private void OnLeftClickTile(Tile tile)
     {
-        if (_turnManager.CurrentTurn == _side && tile.Side == Side.None)
-        {
+        if (_turnManager != null && _turnManager.CurrentTurn == _side && tile.Side == Side.None)
             CmdCaptureTile(_side, tile);
-        }
     }
 
     private void OnRightClickTile(Tile tile)
     {
         if (tile.Side != _side)
-        {
-            _tileInfoUI.Open(tile);
-        }
+            _tileInfoUI?.Open(tile);
         else if (tile.Resource != Resource.None && tile.Side == _side)
-        {
-            _tileResourceUI.Open(tile, this);   
-        }
+            _tileResourceUI?.Open(tile, this);
     }
 
     private void TryUpgradeResourceTile(Tile tile)
     {
-        if (_turnManager.CurrentTurn == _side && tile.Side == _side)
+        if (_turnManager != null && _turnManager.CurrentTurn == _side && tile.Side == _side
+            && HaveResources(Resources.Data[tile.Resource], tile.ResourceLevel))
         {
-            if (HaveResources(Resources.Data[tile.Resource], tile.ResourceLevel))
-            {
-                _tileResourceUI.Close();
-                CmdUpgradeTile(_side, tile);
-            }
+            _tileResourceUI?.Close();
+            CmdUpgradeTile(_side, tile);
         }
     }
 
     public bool HaveResources(ResourceData data, int level)
     {
         float[] priceArray = data.PriceCount[level];
-
         for (int i = 0; i < data.PriceResource.Count; i++)
         {
             Resource res = data.PriceResource[i];
             float required = priceArray[i];
-
             if (!_resources.TryGetValue(res, out float current) || current < required)
                 return false;
         }
-
         return true;
     }
 
     [Server]
-    private void AddResources(Dictionary<Resource, float> resources)
-    {
-        if (isServer == false) return;
-
-        foreach (var res in resources)
-        {
-            _resources[res.Key] += res.Value;
-        }
-    }
-    
-    [Server]
     private void SubstractResources(ResourceData data, int level)
     {
-        if (isServer == false) return;
-        
         float[] priceArray = data.PriceCount[level];
         for (int i = 0; i < data.PriceResource.Count; i++)
         {
             Resource res = data.PriceResource[i];
-            float required = priceArray[i];
-            _resources[res] -= required;
+            _resources[res] -= priceArray[i];
         }
     }
 
@@ -170,11 +188,13 @@ public class Player : NetworkBehaviour
     private void CmdCaptureTile(Side side, Tile tile)
     {
         if (!isServer) return;
-        _turnManager ??= FindAnyObjectByType<TurnManager>();
-        if (_turnManager.CurrentTurn != side) return;
-        _board ??= FindAnyObjectByType<Board>();
-        if (tile == null || tile.Side != Side.None) return;
 
+        _turnManager ??= FindAnyObjectByType<TurnManager>();
+        _board ??= FindAnyObjectByType<Board>();
+
+        if (_turnManager == null || _board == null) return;
+        if (_turnManager.CurrentTurn != side) return;
+        if (tile == null || tile.Side != Side.None) return;
         if (!tile.HasAllyNeighbor(side, _board)) return;
 
         tile.SetSide(side);
@@ -186,46 +206,39 @@ public class Player : NetworkBehaviour
     private void CmdUpgradeTile(Side side, Tile tile)
     {
         if (!isServer) return;
+
         _turnManager ??= FindAnyObjectByType<TurnManager>();
+        if (_turnManager == null) return;
         if (_turnManager.CurrentTurn != side) return;
-        _board ??= FindAnyObjectByType<Board>();
         if (tile == null || tile.Side != side) return;
 
-        if (tile.ResourceLevel != Resources.Data[tile.Resource].MaxLevel())
-        {
-            if (HaveResources(Resources.Data[tile.Resource], tile.ResourceLevel))
-            {
-                SubstractResources(Resources.Data[tile.Resource], tile.ResourceLevel);
-                tile.SetResourceLevel(tile.ResourceLevel + 1);
-                _turnManager.NextTurn();
-            }
-        }
-    }
+        int currentLevel = tile.ResourceLevel;
+        var data = Resources.Data[tile.Resource];
+        if (currentLevel == data.MaxLevel()) return;
 
-    [ClientRpc]
-    private void RequireUpdateUI()
-    {
-        _playerUI?.UpdateUI(this);
+        if (HaveResources(data, currentLevel))
+        {
+            SubstractResources(data, currentLevel);
+            tile.SetResourceLevel(currentLevel + 1);
+            _turnManager.NextTurn();
+        }
     }
 
     public Dictionary<Resource, float> GetResourceIncome()
     {
-        Dictionary<Resource, float> income = new Dictionary<Resource, float>();
+        var income = new Dictionary<Resource, float>();
         foreach (string resourceStr in Enum.GetNames(typeof(Resource)))
         {
             Resource resource = Enum.Parse<Resource>(resourceStr);
-            if (resource == Resource.None) continue;
-            income.Add(resource, 0);
+            if (resource != Resource.None)
+                income.Add(resource, Configs.RESOURCES_PASSIVE_INCOME.GetValueOrDefault(resource, 0));
         }
 
         foreach (Tile tile in _capturedTiles)
         {
             if (tile.Resource != Resource.None && tile.ResourceLevel > 0)
-            {
                 income[tile.Resource] += Resources.Data[tile.Resource].Production[tile.ResourceLevel - 1];
-            }
         }
-        
         return income;
     }
 }

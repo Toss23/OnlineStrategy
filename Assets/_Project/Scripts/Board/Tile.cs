@@ -1,9 +1,12 @@
+using System;
 using Mirror;
 using TMPro;
 using UnityEngine;
 
 public class Tile : NetworkBehaviour
 {
+    public event Action OnLevelChanged;
+    
     [Header("References")]
     [SerializeField] private TMP_Text _iconText;
     [SerializeField] private TMP_Text _levelText;
@@ -74,6 +77,13 @@ public class Tile : NetworkBehaviour
         if (!isServer) return;
         _resourceLevel = level;
         UpdateTile();
+        RpcLevelChanged();
+    }
+
+    [ClientRpc]
+    private void RpcLevelChanged()
+    {
+        OnLevelChanged?.Invoke();
     }
 
     [Server]

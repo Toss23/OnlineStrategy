@@ -16,6 +16,13 @@ public class Network : NetworkManager
     private HashSet<Side> _usedSides = new HashSet<Side>();
     private bool _mapGenerated = false;
 
+    // Словарь для хранения игроков по сторонам
+    private Dictionary<Side, Player> _players = new Dictionary<Side, Player>();
+
+    public void RegisterPlayer(Side side, Player player) => _players[side] = player;
+    public void UnregisterPlayer(Side side) => _players.Remove(side);
+    public Player GetPlayerBySide(Side side) => _players.TryGetValue(side, out var p) ? p : null;
+
     public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
         base.OnServerAddPlayer(conn);
@@ -38,6 +45,7 @@ public class Network : NetworkManager
 
         player.SetSide(assignedSide);
         _usedSides.Add(assignedSide);
+        RegisterPlayer(assignedSide, player);
 
         // Если теперь два игрока и карта ещё не сгенерирована – генерируем и стартуем игру
         if (numPlayers == 2 && !_mapGenerated)
@@ -50,11 +58,11 @@ public class Network : NetworkManager
 
     public override void OnServerDisconnect(NetworkConnectionToClient conn)
     {
-        // Освобождаем сторону игрока
         Player player = conn.identity?.GetComponent<Player>();
         if (player != null)
         {
             _usedSides.Remove(player.Side);
+            UnregisterPlayer(player.Side);
         }
 
         base.OnServerDisconnect(conn);

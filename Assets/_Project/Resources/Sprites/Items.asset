@@ -73,6 +73,26 @@ MonoBehaviour:
     m_GlyphIndex: 6
     m_Scale: 1
     m_Name: Rocket
+  - m_ElementType: 2
+    m_Unicode: 65534
+    m_GlyphIndex: 7
+    m_Scale: 1
+    m_Name: AirDefence
+  - m_ElementType: 2
+    m_Unicode: 65534
+    m_GlyphIndex: 8
+    m_Scale: 1
+    m_Name: Factory
+  - m_ElementType: 2
+    m_Unicode: 65534
+    m_GlyphIndex: 9
+    m_Scale: 1
+    m_Name: LaunchMissle
+  - m_ElementType: 2
+    m_Unicode: 65534
+    m_GlyphIndex: 10
+    m_Scale: 1
+    m_Name: NuclearReactor
   m_GlyphTable:
   - m_Index: 0
     m_Metrics:
@@ -186,6 +206,70 @@ MonoBehaviour:
     m_AtlasIndex: 0
     m_ClassDefinitionType: 0
     sprite: {fileID: 1739251938, guid: 47cf7ed923f0f9545bb34c194c459bc6, type: 3}
+  - m_Index: 7
+    m_Metrics:
+      m_Width: 64
+      m_Height: 64
+      m_HorizontalBearingX: -10
+      m_HorizontalBearingY: 44
+      m_HorizontalAdvance: 52
+    m_GlyphRect:
+      m_X: 0
+      m_Y: 0
+      m_Width: 64
+      m_Height: 64
+    m_Scale: 1
+    m_AtlasIndex: 0
+    m_ClassDefinitionType: 0
+    sprite: {fileID: 169657887, guid: 47cf7ed923f0f9545bb34c194c459bc6, type: 3}
+  - m_Index: 8
+    m_Metrics:
+      m_Width: 64
+      m_Height: 64
+      m_HorizontalBearingX: -10
+      m_HorizontalBearingY: 44
+      m_HorizontalAdvance: 52
+    m_GlyphRect:
+      m_X: 0
+      m_Y: 64
+      m_Width: 64
+      m_Height: 64
+    m_Scale: 1
+    m_AtlasIndex: 0
+    m_ClassDefinitionType: 0
+    sprite: {fileID: 1738788795, guid: 47cf7ed923f0f9545bb34c194c459bc6, type: 3}
+  - m_Index: 9
+    m_Metrics:
+      m_Width: 64
+      m_Height: 64
+      m_HorizontalBearingX: -10
+      m_HorizontalBearingY: 44
+      m_HorizontalAdvance: 52
+    m_GlyphRect:
+      m_X: 64
+      m_Y: 64
+      m_Width: 64
+      m_Height: 64
+    m_Scale: 1
+    m_AtlasIndex: 0
+    m_ClassDefinitionType: 0
+    sprite: {fileID: -1535733529, guid: 47cf7ed923f0f9545bb34c194c459bc6, type: 3}
+  - m_Index: 10
+    m_Metrics:
+      m_Width: 64
+      m_Height: 64
+      m_HorizontalBearingX: -10
+      m_HorizontalBearingY: 44
+      m_HorizontalAdvance: 52
+    m_GlyphRect:
+      m_X: 64
+      m_Y: 0
+      m_Width: 64
+      m_Height: 64
+    m_Scale: 1
+    m_AtlasIndex: 0
+    m_ClassDefinitionType: 0
+    sprite: {fileID: 1054447930, guid: 47cf7ed923f0f9545bb34c194c459bc6, type: 3}
   spriteInfoList: []
   fallbackSpriteAssets: []
 --- !u!21 &2097079889126707165

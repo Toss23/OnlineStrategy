@@ -33,6 +33,13 @@ public class Player : NetworkBehaviour
 
     private void OnSideChanged(Side oldValue, Side newValue)
     {
+        if (isLocalPlayer)
+        {
+            var camController = FindAnyObjectByType<CameraController>();
+            Vector2 target = _side == Side.Purple ? Configs.BOARD_SIZE : Vector2.zero;
+            camController.SetPosition(target, true);
+        }
+        
         RequireUpdateUI?.Invoke();
     }
 
@@ -47,10 +54,6 @@ public class Player : NetworkBehaviour
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        
-        var camController = FindAnyObjectByType<CameraController>();
-        Vector2 target = _side == Side.Purple ? Configs.BOARD_SIZE : Vector2.zero;
-        camController.SetPosition(target, true);
 
         _playerInput = FindAnyObjectByType<PlayerInput>();
         _turnManager = FindAnyObjectByType<TurnManager>();
@@ -118,11 +121,6 @@ public class Player : NetworkBehaviour
         RequireUpdateUI?.Invoke();
     }
 
-    private void TileUpgrade(Tile tile)
-    {
-        
-    }
-
     [Command]
     private void CmdInitResource()
     {
@@ -138,16 +136,34 @@ public class Player : NetworkBehaviour
 
     private void OnLeftClickTile(Tile tile)
     {
-        if (_turnManager != null && _turnManager.CurrentTurn == _side && tile.Side == Side.None)
+        if (_turnManager.CurrentTurn == _side && tile.Side == Side.None)
+        {
             CmdCaptureTile(_side, tile);
+            return;
+        }
+
+        if (tile.Side == _side && tile.Resource != Resource.None)
+        {
+            _tileResourceUI?.Open(tile, this);
+            return;
+        }
+
+        if (tile.Side == _side && tile.Building == Building.None)
+        {
+            
+            return;
+        }
+        
+        if (tile.Side == _side && tile.Building == Building.Factory)
+        {
+            
+            return;
+        }
     }
 
     private void OnRightClickTile(Tile tile)
     {
-        if (tile.Side != _side)
-            _tileInfoUI?.Open(tile);
-        else if (tile.Resource != Resource.None && tile.Side == _side)
-            _tileResourceUI?.Open(tile, this);
+        _tileInfoUI?.Open(tile);
     }
 
     private void TryUpgradeResourceTile(Tile tile)
@@ -172,6 +188,28 @@ public class Player : NetworkBehaviour
         }
         return true;
     }
+    
+    public bool HaveResources(Dictionary<Resource, float> resources)
+    {
+        foreach (var kvp in resources)
+        {
+            if (!_resources.TryGetValue(kvp.Key, out float current) || current < kvp.Value)
+                return false;
+        }
+        return true;
+    }
+    
+    [Server]
+    public void SubstractResources(Dictionary<Resource, float> resources)
+    {
+        if (!isServer) return;
+        foreach (var kvp in resources)
+        {
+            if (_resources.TryGetValue(kvp.Key, out float current))
+                _resources[kvp.Key] = current - kvp.Value;
+        }
+    }
+
 
     [Server]
     private void SubstractResources(ResourceData data, int level)

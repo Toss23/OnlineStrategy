@@ -60,7 +60,10 @@ public class TileResourceUI : MonoBehaviour
 
         if (tile.ResourceLevel != Resources.Data[tile.Resource].MaxLevel())
         {
-            _infoText.text += $"\nСледующий уровень: {Resources.Data[tile.Resource].Production[tile.ResourceLevel + 1]} за ход";
+            if (tile.ResourceLevel != Resources.Data[tile.Resource].MaxLevel() - 1)
+            {
+                _infoText.text += $"\nСледующий уровень: {Resources.Data[tile.Resource].Production[tile.ResourceLevel + 1]} за ход";
+            }
 
             _upgradeButton.interactable = player.HaveResources(Resources.Data[tile.Resource], tile.ResourceLevel);
 

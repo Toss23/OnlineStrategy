@@ -134,8 +134,8 @@ public class Board : NetworkBehaviour
         }
     }
     
-    public IEnumerable<Tile> GetAllTiles()
+    public List<Tile> GetAllTiles()
     {
-        return _tiles.Values.Distinct();
+        return _tiles.Values.ToList();
     }
 }

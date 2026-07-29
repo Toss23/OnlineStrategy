@@ -9,12 +9,22 @@ public class Tile : NetworkBehaviour
     
     [Header("References")]
     [SerializeField] private TMP_Text _iconText;
-    [SerializeField] private TMP_Text _levelText;
+    [SerializeField] private TMP_Text _infoText;
 
     [SyncVar(hook = nameof(OnResourceChanged))]
     private Resource _resource = Resource.None;
+    
     [SyncVar(hook = nameof(OnResourceLevelChanged))] 
     private int _resourceLevel = 0;
+    
+    [SyncVar(hook = nameof(OnBuildingChanged))] 
+    private Building _building = Building.None;
+    
+    [SyncVar(hook = nameof(OnBuildingProductionChanged))] 
+    private int _buildingProduction;
+    
+    [SyncVar(hook = nameof(OnBuildingProgressChanged))] 
+    private int _buildingProgress = 0;
 
     [SyncVar(hook = nameof(OnSideChanged))]
     private Side _side = Side.None;
@@ -31,10 +41,11 @@ public class Tile : NetworkBehaviour
     public Side Side => _side;
     public Resource Resource => _resource;
     public int ResourceLevel => _resourceLevel;
+    public Building Building => _building;
+    public int BuildingProduction => _buildingProduction;
+    public int BuildingProgress => _buildingProgress;
     public int X => _x;
     public int Y => _y;
-    public int Width => _width;
-    public int Height => _height;
 
     private void Awake()
     {
@@ -78,6 +89,60 @@ public class Tile : NetworkBehaviour
         _resourceLevel = level;
         UpdateTile();
         RpcLevelChanged();
+    }
+    
+    [Server]
+    public void SetBuilding(Building building)
+    {
+        if (!isServer) return;
+        if (_resource != Resource.None) return;
+        _building = building;
+        UpdateTile();
+    }
+    
+    [Server]
+    public void SetBuildingProduction(BuildingProduction buildingProduction)
+    {
+        if (!isServer) return;
+        if (_building == Building.None) return;
+
+        if (_buildingProduction != -1)
+        {
+            if (Buildings.Data.TryGetValue(_building, out BuildingData data))
+            {
+                _buildingProgress = data.Turns;
+            }
+            else
+            {
+                _buildingProgress = 0;
+            }
+        }
+        
+        if (buildingProduction != null)
+        {
+            if (Buildings.Data.ContainsKey(_building))
+            {
+                if (Buildings.Data[_building].Productions.Contains(buildingProduction))
+                {
+                    int index = Buildings.Data[_building].Productions.IndexOf(buildingProduction);
+                    _buildingProduction = index;
+                    _buildingProgress = 0;
+                    UpdateTile();
+                    return;
+                }
+            }
+        }
+
+        _buildingProduction = -1;
+        return;
+    }
+    
+    [Server]
+    public void SetBuildingProgress(int progress)
+    {
+        if (!isServer) return;
+        _buildingProgress = progress;
+        UpdateTile();
     }
 
     [ClientRpc]
@@ -124,23 +189,63 @@ public class Tile : NetworkBehaviour
         UpdateTile();
     }
 
+    private void OnBuildingChanged(Building oldValue, Building newValue)
+    {
+        UpdateTile();
+    }
+
+    private void OnBuildingProductionChanged(int oldValue, int newValue)
+    {
+        UpdateTile();
+    }
+
+    private void OnBuildingProgressChanged(int oldValue, int newValue)
+    {
+        UpdateTile();
+    }
+
     private void UpdateTile()
     {
         if (_resourceLevel == 0)
         {
-            _levelText.text = "";
+            _infoText.text = "";
         }
         else
         {
-            _levelText.text = $"Ур. {_resourceLevel}";
+            _infoText.text = $"Ур. {_resourceLevel}";
         }
-        
+
         if (_resource == Resource.None)
             _iconText.text = "";
-        else if (Resources.Icon.TryGetValue(_resource, out int spriteIndex))
-            _iconText.text = $"<sprite={spriteIndex}>";
+        else if (Resources.Icon.TryGetValue(_resource, out int resourceIndex))
+            _iconText.text = $"<sprite={resourceIndex}>";
         else
             _iconText.text = _resource.ToString();
+
+        if (_resource == Resource.None)
+        {
+            if (Buildings.Icon.TryGetValue(_building, out int buildingIndex))
+                _iconText.text = $"<sprite={buildingIndex}>";
+            else if (_building == Building.None)
+                _iconText.text = "";
+            else
+                _iconText.text = _resource.ToString();
+            
+            if (_building == Building.None)
+            {
+                _infoText.text = "";
+            }
+            else if (_buildingProduction == -1)
+            {
+                int turns = Buildings.Data[_building].Turns;
+                _infoText.text = _buildingProgress != turns ? $"{_buildingProgress} / {turns}" : "";
+            }
+            else
+            {
+                BuildingProduction buildingProduction = Buildings.Data[_building].Productions[_buildingProduction];
+                _infoText.text = $"{_buildingProgress} / {buildingProduction.Turns}";
+            }
+        }
 
         if (_isHighlighted && _side == Side.None)
             _materialInstance.SetColor("_BaseColor", Color.yellow);

@@ -149,7 +149,7 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   _iconText: {fileID: 2064345325688806982}
-  _levelText: {fileID: 637829759889419594}
+  _infoText: {fileID: 637829759889419594}
 --- !u!1 &6194998211961220349
 GameObject:
   m_ObjectHideFlags: 0
@@ -162,7 +162,7 @@ GameObject:
   - component: {fileID: 7649980813736046520}
   - component: {fileID: 637829759889419594}
   m_Layer: 0
-  m_Name: LevelText
+  m_Name: InfoText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

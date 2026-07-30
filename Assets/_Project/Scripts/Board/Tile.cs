@@ -97,6 +97,7 @@ public class Tile : NetworkBehaviour
         if (!isServer) return;
         if (_resource != Resource.None) return;
         _building = building;
+        _buildingProgress = 0;
         UpdateTile();
     }
     
@@ -134,7 +135,16 @@ public class Tile : NetworkBehaviour
         }
 
         _buildingProduction = -1;
-        return;
+    }
+
+    public bool BuildingIsReady()
+    {
+        if (_building == Building.None) return false;
+        if (_buildingProduction != -1) return true;
+        if (Buildings.Data.ContainsKey(_building) == false) return false;
+        BuildingData data = Buildings.Data[_building];
+        if (_buildingProgress < data.Turns) return false;
+        return true;
     }
     
     [Server]

@@ -29,6 +29,7 @@ public class IncomeService : NetworkBehaviour
     private void ApplyIncomeForTurn(Side currentTurn)
     {
         if (!isServer) return;
+        if (_turnManager.Turn < 1) return;
 
         Player player = _network?.GetPlayerBySide(currentTurn);
         if (player == null) return;

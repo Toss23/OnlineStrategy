@@ -11,7 +11,10 @@ public class TurnManager : NetworkBehaviour
     [SyncVar(hook = nameof(OnTurnChangedHook))]
     private Side _currentTurn = Side.None;
 
+    private int _turn = 0;
+
     public Side CurrentTurn => _currentTurn;
+    public int Turn => _turn;
 
     [Server]
     public void StartGame()
@@ -25,6 +28,7 @@ public class TurnManager : NetworkBehaviour
     {
         if (isServer == false) return;
         _currentTurn = (_currentTurn == Side.Red) ? Side.Purple : Side.Red;
+        _turn += 1;
     }
 
     private void OnTurnChangedHook(Side oldValue, Side newValue)

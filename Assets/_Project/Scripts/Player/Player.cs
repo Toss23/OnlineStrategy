@@ -18,8 +18,10 @@ public class Player : NetworkBehaviour
     private PlayerInput _playerInput;
     private TurnManager _turnManager;
     private Board _board;
+    
     private TileInfoUI _tileInfoUI;
     private TileResourceUI _tileResourceUI;
+    private TileBuildingUI _tileBuildingUI;
 
     public Side Side => _side;
     public SyncDictionary<Resource, float> PlayerResources => _resources;
@@ -58,8 +60,10 @@ public class Player : NetworkBehaviour
         _playerInput = FindAnyObjectByType<PlayerInput>();
         _turnManager = FindAnyObjectByType<TurnManager>();
         _board = FindAnyObjectByType<Board>();
+        
         _tileInfoUI = FindAnyObjectByType<TileInfoUI>();
         _tileResourceUI = FindAnyObjectByType<TileResourceUI>();
+        _tileBuildingUI = FindAnyObjectByType<TileBuildingUI>();
 
         var playerUI = FindAnyObjectByType<PlayerUI>();
         if (playerUI != null)
@@ -67,6 +71,7 @@ public class Player : NetworkBehaviour
 
         _tileInfoUI?.Init();
         _tileResourceUI?.Init();
+        _tileBuildingUI?.Init();
 
         if (_playerInput != null)
         {
@@ -77,6 +82,11 @@ public class Player : NetworkBehaviour
         if (_tileResourceUI != null)
         {
             _tileResourceUI.OnClickUpgrade += TryUpgradeResourceTile;
+        }
+
+        if (_tileBuildingUI != null)
+        {
+            _tileBuildingUI.OnClickBuilding += TryBuildBuilding;
         }
 
         _resources.OnChange += OnResourcesChanged;
@@ -96,6 +106,11 @@ public class Player : NetworkBehaviour
         if (_tileResourceUI != null)
         {
             _tileResourceUI.OnClickUpgrade -= TryUpgradeResourceTile;
+        }
+        
+        if (_tileBuildingUI != null)
+        {
+            _tileBuildingUI.OnClickBuilding -= TryBuildBuilding;
         }
 
         _resources.OnChange -= OnResourcesChanged;
@@ -150,7 +165,7 @@ public class Player : NetworkBehaviour
 
         if (tile.Side == _side && tile.Building == Building.None)
         {
-            
+            _tileBuildingUI?.Open(tile, this);
             return;
         }
         
@@ -168,11 +183,52 @@ public class Player : NetworkBehaviour
 
     private void TryUpgradeResourceTile(Tile tile)
     {
-        if (_turnManager != null && _turnManager.CurrentTurn == _side && tile.Side == _side
-            && HaveResources(Resources.Data[tile.Resource], tile.ResourceLevel))
+        if (_turnManager == null || _turnManager.CurrentTurn != _side) return;
+        if (tile.Side != _side) return;
+        
+        if (HaveResources(Resources.Data[tile.Resource], tile.ResourceLevel))
         {
             _tileResourceUI?.Close();
             CmdUpgradeTile(_side, tile);
+        }
+    }
+    
+    private void TryBuildBuilding(Tile tile, Building building)
+    {
+        if (_turnManager == null || _turnManager.CurrentTurn != _side) return;
+        if (tile == null) return;
+        if (tile.Side != _side) return;
+        if (tile.Building != Building.None) return;
+        
+        if (Buildings.Data.TryGetValue(building, out BuildingData data))
+        {
+            if (HaveResources(data.Cost))
+            {
+                _tileBuildingUI?.Close();
+                CmdBuildBuilding(tile, building);
+            }
+        }
+    }
+
+    [Command]
+    private void CmdBuildBuilding(Tile tile, Building building)
+    {
+        if (!isServer) return;
+        _turnManager ??= FindAnyObjectByType<TurnManager>();
+        
+        if (_turnManager == null || _turnManager.CurrentTurn != _side) return;
+        if (tile == null) return;
+        if (tile.Side != _side) return;
+        if (tile.Building != Building.None) return;
+        
+        if (Buildings.Data.TryGetValue(building, out BuildingData data))
+        {
+            if (HaveResources(data.Cost) && tile.Building == Building.None && tile.Resource == Resource.None)
+            {
+                SubstractResources(data.Cost);
+                tile.SetBuilding(building);
+                _turnManager.NextTurn();
+            }
         }
     }
 

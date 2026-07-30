@@ -22,8 +22,10 @@ public static class Buildings
             Name = "Завод",
             Description = 
                 $"Производит " +
-                $"<sprite={(Resources.Icon.ContainsKey(Resource.Chip) ? Resources.Icon[Resource.Chip] : Resources.TryGetRuName(Resource.Chip))} и " +
-                $"<sprite={(Resources.Icon.ContainsKey(Resource.Rocket) ? Resources.Icon[Resource.Rocket] : Resources.TryGetRuName(Resource.Rocket))}",
+                $"<sprite={(Resources.Icon.ContainsKey(Resource.Chip) ? Resources.Icon[Resource.Chip] : Resources.TryGetRuName(Resource.Chip))}> и " +
+                $"<sprite={(Resources.Icon.ContainsKey(Resource.Rocket) ? Resources.Icon[Resource.Rocket] : Resources.TryGetRuName(Resource.Rocket))}>",
+            
+            Turns = 3,
             
             Cost = new Dictionary<Resource, float>()
             {
@@ -44,6 +46,27 @@ public static class Buildings
                     },
                     Turns = 2,
                 }
+            }
+        },
+        
+        [Building.NuclearReactor] = new BuildingData()
+        {
+            Name = "Ядерный реактор",
+            Description = 
+                $"Производит 3 " +
+                $"<sprite={(Resources.Icon.ContainsKey(Resource.Energy) ? Resources.Icon[Resource.Energy] : Resources.TryGetRuName(Resource.Energy))}>" +
+                $" за ход",
+            
+            Cost = new Dictionary<Resource, float>()
+            {
+                [Resource.Iron] = 20,
+                [Resource.Gold] = 10,
+                [Resource.Energy] = 30
+            },
+            
+            Income = new Dictionary<Resource, float>()
+            {
+                [Resource.Energy] = 3
             }
         }
     };

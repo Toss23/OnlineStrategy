@@ -17,12 +17,14 @@ public class PlayerInput : MonoBehaviour
 
     private TileInfoUI _tileInfoUI;
     private TileResourceUI _tileResourceUI;
+    private TileBuildingUI _tileBuildingUI;
 
     private void Awake()
     {
         _camera = Camera.main;
         _tileInfoUI = FindAnyObjectByType<TileInfoUI>();
         _tileResourceUI = FindAnyObjectByType<TileResourceUI>();
+        _tileBuildingUI = FindAnyObjectByType<TileBuildingUI>();
     }
 
     private void Update()
@@ -31,6 +33,7 @@ public class PlayerInput : MonoBehaviour
         if (mouse == null) return;
         if (_tileInfoUI.Active) return;
         if (_tileResourceUI.Active) return;
+        if (_tileBuildingUI.Active) return;
 
         Vector2 mousePos = mouse.position.ReadValue();
         Tile currentHover = GetTileUnderMouse(mousePos);

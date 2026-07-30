@@ -123,12 +123,12 @@ public class Player : NetworkBehaviour
         {
             case SyncList<Tile>.Operation.OP_ADD:
                 _tileUpgradeDelegates[tile] = () => RequireUpdateUI?.Invoke();
-                tile.OnLevelChanged += _tileUpgradeDelegates[tile];
+                tile.OnStateChanged += _tileUpgradeDelegates[tile];
                 break;
             case SyncList<Tile>.Operation.OP_REMOVEAT:
                 if (_tileUpgradeDelegates[tile] != null)
                 {
-                    tile.OnLevelChanged -= _tileUpgradeDelegates[tile];
+                    tile.OnStateChanged -= _tileUpgradeDelegates[tile];
                 }
                 break;
         }

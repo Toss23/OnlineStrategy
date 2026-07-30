@@ -57,13 +57,15 @@ public class TileHighlighter : MonoBehaviour
     {
         if (_highlightedTile != null && _highlightedTile != tile)
         {
-            _highlightedTile.SetHighlight(false);
+            var oldView = _highlightedTile.GetComponent<TileView>();
+            oldView?.SetHighlight(false);
             _highlightedTile = null;
         }
 
         if (tile != null && ShouldHighlight(tile))
         {
-            tile.SetHighlight(true);
+            var view = tile.GetComponent<TileView>();
+            view?.SetHighlight(true);
             _highlightedTile = tile;
         }
     }

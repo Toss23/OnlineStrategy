@@ -34,55 +34,44 @@ public class BuildingsService : NetworkBehaviour
         foreach (Tile tile in _board.GetAllTiles())
         {
             if (tile.Building == Building.None) continue;
-            if (Buildings.Data.ContainsKey(tile.Building) == false) continue;
+            if (!Buildings.Data.ContainsKey(tile.Building)) continue;
             BuildingData data = Buildings.Data[tile.Building];
-            
+
             if (tile.Side == currentTurn)
             {
-                if (Buildings.Data[tile.Building].Income.Count > 0)
+                foreach (var income in data.Income)
                 {
-                    foreach (var income in data.Income)
-                    {
-                        if (player.PlayerResources.ContainsKey(income.Key))
-                            player.PlayerResources[income.Key] += income.Value;
-                    }
+                    if (player.PlayerResources.ContainsKey(income.Key))
+                        player.PlayerResources[income.Key] += income.Value;
                 }
+            }
 
-                if (tile.BuildingIsReady() == false)
-                {
-                    tile.SetBuildingProgress(tile.BuildingProgress + 1);
-                    Debug.Log($"Build {tile.Building} +1 ({tile.BuildingProgress})");
-                }
-                
-                if (tile.BuildingIsReady() == true && tile.BuildingProduction != -1)
+            if (tile.Side == currentTurn)
+            {
+                tile.AddBuildingProgress(1);
+
+                if (tile.BuildingReady && tile.BuildingProduction != -1)
                 {
                     BuildingProduction production = data.Productions[tile.BuildingProduction];
-                    
-                    tile.SetBuildingProgress(tile.BuildingProgress + 1);
-                    Debug.Log($"Build {tile.Building} +1 ({tile.BuildingProgress})");
                     if (tile.BuildingProgress >= production.Turns)
                     {
-                        tile.SetBuildingProgress(0);
-                        Debug.Log($"Build {tile.Building} set 0 ({tile.BuildingProgress})");
                         player.PlayerResources[production.Resource] += production.Count;
+                        tile.ResetBuildingProgress();
                     }
                 }
             }
             else
             {
-                if (tile.BuildingIsReady() && tile.BuildingProduction != -1 && Buildings.Data[tile.Building].Productions.Count > tile.BuildingProduction)
+                if (tile.BuildingReady && tile.BuildingProduction != -1)
                 {
-                    if (tile.BuildingProgress == 0)
+                    BuildingProduction production = data.Productions[tile.BuildingProduction];
+                    if (enemyPlayer.HaveResources(production.Cost))
                     {
-                        BuildingProduction production = Buildings.Data[tile.Building].Productions[tile.BuildingProduction];
-                        if (enemyPlayer.HaveResources(production.Cost))
-                        {
-                            enemyPlayer.SubstractResources(production.Cost);
-                        }
-                        else
-                        {
-                            tile.SetBuildingProduction(null);
-                        }
+                        enemyPlayer.SubstractResources(production.Cost);
+                    }
+                    else
+                    {
+                        tile.SetBuildingProduction(null);
                     }
                 }
             }

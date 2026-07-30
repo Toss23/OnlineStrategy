@@ -1,15 +1,11 @@
 using System;
+using System.Collections.Generic;
 using Mirror;
-using TMPro;
 using UnityEngine;
 
 public class Tile : NetworkBehaviour
 {
-    public event Action OnLevelChanged;
-    
-    [Header("References")]
-    [SerializeField] private TMP_Text _iconText;
-    [SerializeField] private TMP_Text _infoText;
+    public event Action OnStateChanged;
 
     [SyncVar(hook = nameof(OnResourceChanged))]
     private Resource _resource = Resource.None;
@@ -21,7 +17,7 @@ public class Tile : NetworkBehaviour
     private Building _building = Building.None;
     
     [SyncVar(hook = nameof(OnBuildingProductionChanged))] 
-    private int _buildingProduction;
+    private int _buildingProduction = -1; // -1 = нет производства
     
     [SyncVar(hook = nameof(OnBuildingProgressChanged))] 
     private int _buildingProgress = 0;
@@ -34,44 +30,36 @@ public class Tile : NetworkBehaviour
     [SyncVar] private int _width = 1;
     [SyncVar] private int _height = 1;
 
-    private Renderer _renderer;
-    private Material _materialInstance;
-    private bool _isHighlighted;
+    [SyncVar(hook = nameof(OnBuildingReadyChanged))]
+    private bool _buildingReady = false;
 
+    // Публичные свойства
     public Side Side => _side;
     public Resource Resource => _resource;
     public int ResourceLevel => _resourceLevel;
     public Building Building => _building;
     public int BuildingProduction => _buildingProduction;
     public int BuildingProgress => _buildingProgress;
+    public bool BuildingReady => _buildingReady;
     public int X => _x;
     public int Y => _y;
-
-    private void Awake()
-    {
-        _renderer = GetComponent<Renderer>();
-        if (_renderer != null)
-        {
-            _materialInstance = new Material(_renderer.sharedMaterial);
-            _renderer.material = _materialInstance;
-        }
-    }
 
     public override void OnStartClient()
     {
         base.OnStartClient();
-        
         Board board = FindAnyObjectByType<Board>();
         board.RegisterTile(this, _x, _y, _width, _height);
-        UpdateTile();
+        OnStateChanged?.Invoke();
     }
+
+    // ---- Серверные методы изменения состояния ----
 
     [Server]
     public void SetSide(Side side)
     {
         if (!isServer) return;
         _side = side;
-        UpdateTile();
+        OnStateChanged?.Invoke();
     }
 
     [Server]
@@ -79,7 +67,7 @@ public class Tile : NetworkBehaviour
     {
         if (!isServer) return;
         _resource = resource;
-        UpdateTile();
+        OnStateChanged?.Invoke();
     }
     
     [Server]
@@ -87,7 +75,6 @@ public class Tile : NetworkBehaviour
     {
         if (!isServer) return;
         _resourceLevel = level;
-        UpdateTile();
         RpcLevelChanged();
     }
     
@@ -96,9 +83,14 @@ public class Tile : NetworkBehaviour
     {
         if (!isServer) return;
         if (_resource != Resource.None) return;
+        if (_building != Building.None) return;
+        
         _building = building;
         _buildingProgress = 0;
-        UpdateTile();
+        _buildingReady = false;
+        _buildingProduction = -1;
+        
+        OnStateChanged?.Invoke();
     }
     
     [Server]
@@ -106,59 +98,45 @@ public class Tile : NetworkBehaviour
     {
         if (!isServer) return;
         if (_building == Building.None) return;
+        if (!_buildingReady) return;
 
-        if (_buildingProduction != -1)
+        _buildingProduction = -1;
+        _buildingProgress = 0;
+        
+        if (buildingProduction != null && Buildings.Data.ContainsKey(_building))
         {
-            if (Buildings.Data.TryGetValue(_building, out BuildingData data))
+            int index = Buildings.Data[_building].Productions.IndexOf(buildingProduction);
+            _buildingProduction = index;
+        }
+        
+        OnStateChanged?.Invoke();
+    }
+
+    [Server]
+    public void AddBuildingProgress(int amount)
+    {
+        if (!isServer) return;
+        if (_building == Building.None) return;
+        
+        _buildingProgress += amount;
+        if (_buildingReady == false)
+        {
+            if (_buildingProgress >= Buildings.Data[_building].Turns)
             {
-                _buildingProgress = data.Turns;
-            }
-            else
-            {
+                _buildingReady = true;
                 _buildingProgress = 0;
             }
         }
         
-        if (buildingProduction != null)
-        {
-            if (Buildings.Data.ContainsKey(_building))
-            {
-                if (Buildings.Data[_building].Productions.Contains(buildingProduction))
-                {
-                    int index = Buildings.Data[_building].Productions.IndexOf(buildingProduction);
-                    _buildingProduction = index;
-                    _buildingProgress = 0;
-                    UpdateTile();
-                    return;
-                }
-            }
-        }
-
-        _buildingProduction = -1;
+        OnStateChanged?.Invoke();
     }
 
-    public bool BuildingIsReady()
-    {
-        if (_building == Building.None) return false;
-        if (_buildingProduction != -1) return true;
-        if (Buildings.Data.ContainsKey(_building) == false) return false;
-        BuildingData data = Buildings.Data[_building];
-        if (_buildingProgress < data.Turns) return false;
-        return true;
-    }
-    
     [Server]
-    public void SetBuildingProgress(int progress)
+    public void ResetBuildingProgress()
     {
         if (!isServer) return;
-        _buildingProgress = progress;
-        UpdateTile();
-    }
-
-    [ClientRpc]
-    private void RpcLevelChanged()
-    {
-        OnLevelChanged?.Invoke();
+        _buildingProgress = 0;
+        OnStateChanged?.Invoke();
     }
 
     [Server]
@@ -177,90 +155,10 @@ public class Tile : NetworkBehaviour
         _height = height;
     }
 
-    public void SetHighlight(bool highlighted)
+    [ClientRpc]
+    private void RpcLevelChanged()
     {
-        if (_isHighlighted == highlighted) return;
-        _isHighlighted = highlighted;
-        UpdateTile();
-    }
-
-    private void OnResourceChanged(Resource oldValue, Resource newValue)
-    {
-        UpdateTile();
-    }
-    
-    private void OnResourceLevelChanged(int oldValue, int newValue)
-    {
-        UpdateTile();
-    }
-
-    private void OnSideChanged(Side oldValue, Side newValue)
-    {
-        UpdateTile();
-    }
-
-    private void OnBuildingChanged(Building oldValue, Building newValue)
-    {
-        UpdateTile();
-    }
-
-    private void OnBuildingProductionChanged(int oldValue, int newValue)
-    {
-        UpdateTile();
-    }
-
-    private void OnBuildingProgressChanged(int oldValue, int newValue)
-    {
-        UpdateTile();
-    }
-
-    private void UpdateTile()
-    {
-        if (_resourceLevel == 0)
-        {
-            _infoText.text = "";
-        }
-        else
-        {
-            _infoText.text = $"Ур. {_resourceLevel}";
-        }
-
-        if (_resource == Resource.None)
-            _iconText.text = "";
-        else if (Resources.Icon.TryGetValue(_resource, out int resourceIndex))
-            _iconText.text = $"<sprite={resourceIndex}>";
-        else
-            _iconText.text = _resource.ToString();
-
-        if (_resource == Resource.None)
-        {
-            if (Buildings.Icon.TryGetValue(_building, out int buildingIndex))
-                _iconText.text = $"<sprite={buildingIndex}>";
-            else if (_building == Building.None)
-                _iconText.text = "";
-            else
-                _iconText.text = _resource.ToString();
-            
-            if (_building == Building.None)
-            {
-                _infoText.text = "";
-            }
-            else if (_buildingProduction == -1)
-            {
-                int turns = Buildings.Data[_building].Turns;
-                _infoText.text = _buildingProgress != turns ? $"{_buildingProgress} / {turns}" : "";
-            }
-            else
-            {
-                BuildingProduction buildingProduction = Buildings.Data[_building].Productions[_buildingProduction];
-                _infoText.text = $"{_buildingProgress} / {buildingProduction.Turns}";
-            }
-        }
-
-        if (_isHighlighted && _side == Side.None)
-            _materialInstance.SetColor("_BaseColor", Color.yellow);
-        else if (Sides.Colors.TryGetValue(_side, out Color color))
-            _materialInstance.SetColor("_BaseColor", color);
+        OnStateChanged?.Invoke();
     }
 
     public bool HasAllyNeighbor(Side side, Board board)
@@ -271,4 +169,14 @@ public class Tile : NetworkBehaviour
                 return true;
         return false;
     }
+
+    // ---- Хуки ----
+
+    private void OnResourceChanged(Resource oldValue, Resource newValue) => OnStateChanged?.Invoke();
+    private void OnResourceLevelChanged(int oldValue, int newValue) => OnStateChanged?.Invoke();
+    private void OnSideChanged(Side oldValue, Side newValue) => OnStateChanged?.Invoke();
+    private void OnBuildingChanged(Building oldValue, Building newValue) => OnStateChanged?.Invoke();
+    private void OnBuildingProductionChanged(int oldValue, int newValue) => OnStateChanged?.Invoke();
+    private void OnBuildingProgressChanged(int oldValue, int newValue) => OnStateChanged?.Invoke();
+    private void OnBuildingReadyChanged(bool oldValue, bool newValue) => OnStateChanged?.Invoke();
 }

@@ -48,7 +48,8 @@ public class BuildingsService : NetworkBehaviour
 
             if (tile.Side == currentTurn)
             {
-                tile.AddBuildingProgress(1);
+                if (tile.BuildingReady == false || tile.BuildingProduction != -1)
+                    tile.AddBuildingProgress(1);
 
                 if (tile.BuildingReady && tile.BuildingProduction != -1)
                 {

@@ -199,6 +199,14 @@ public class Player : NetworkBehaviour
         if (tile == null) return;
         if (tile.Side != _side) return;
         if (tile.Building != Building.None) return;
+
+        if (Buildings.Maximum.ContainsKey(building))
+        {
+            int count = _board.BuildingOnTilesCount(building, _side);
+            int maximun = Buildings.Maximum[building];
+            if (count >= maximun)
+                return;
+        }
         
         if (Buildings.Data.TryGetValue(building, out BuildingData data))
         {
@@ -220,6 +228,14 @@ public class Player : NetworkBehaviour
         if (tile == null) return;
         if (tile.Side != _side) return;
         if (tile.Building != Building.None) return;
+        
+        if (Buildings.Maximum.ContainsKey(building))
+        {
+            int count = _board.BuildingOnTilesCount(building, _side);
+            int maximun = Buildings.Maximum[building];
+            if (count >= maximun)
+                return;
+        }
         
         if (Buildings.Data.TryGetValue(building, out BuildingData data))
         {

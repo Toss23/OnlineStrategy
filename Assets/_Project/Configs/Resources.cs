@@ -53,6 +53,7 @@ public static class Resources
             },
             Production = { 1f, 2f, 3.5f, 5f, 7f }
         },
+        
         [Resource.Gold] = new ResourceData(){
             PriceResource = { Resource.Iron, Resource.Gold, Resource.Energy },
             PriceCount = 
@@ -64,7 +65,33 @@ public static class Resources
                 new[] { 28f, 10f, 40f }
             },
             Production = { 0.5f, 1f, 1.8f, 2.8f, 4f }
-        }
+        },
+        
+        [Resource.Oil] = new ResourceData(){
+            PriceResource = { Resource.Iron, Resource.Chip, Resource.Energy },
+            PriceCount = 
+            {
+                new[] { 5f, 0f, 10f },
+                new[] { 8f, 2f, 14f },
+                new[] { 14f, 4f, 22f },
+                new[] { 25f, 8f, 35f },
+                new[] { 38f, 14f, 50f }
+            },
+            Production = { 0.5f, 1f, 1.8f, 2.8f, 4f }
+        },
+        
+        [Resource.Uranium] = new ResourceData(){
+            PriceResource = { Resource.Iron, Resource.Chip, Resource.Energy },
+            PriceCount = 
+            {
+                new[] { 10f, 3f, 18f },
+                new[] { 15f, 5f, 25f },
+                new[] { 25f, 10f, 40f },
+                new[] { 40f, 18f, 60f },
+                new[] { 60f, 28f, 85f }
+            },
+            Production = { 0.1f, 0.25f, 0.5f, 0.8f, 1.2f }
+        },
     };
 
     private static readonly Dictionary<Resource, string> Ru = new Dictionary<Resource, string>()

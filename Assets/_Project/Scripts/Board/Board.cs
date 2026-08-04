@@ -138,4 +138,15 @@ public class Board : NetworkBehaviour
     {
         return _tiles.Values.ToList();
     }
+
+    public int BuildingOnTilesCount(Building building, Side side)
+    {
+        int count = 0;
+        foreach (Tile tile in _tiles.Values)
+        {
+            if (tile.Building == building && tile.Side == side)
+                count++;
+        }
+        return count;
+    }
 }

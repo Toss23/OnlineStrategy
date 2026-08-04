@@ -77,7 +77,9 @@ public class TileView : MonoBehaviour
             
             if (_tile.BuildingProduction == -1)
             {
-                if (Buildings.Data.TryGetValue(_tile.Building, out var data))
+                if (_tile.BuildingReady)
+                    threshold = -1;
+                else if (Buildings.Data.TryGetValue(_tile.Building, out var data))
                     threshold = data.Turns;
             }
             else
